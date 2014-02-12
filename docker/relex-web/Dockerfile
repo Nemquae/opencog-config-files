@@ -11,12 +11,11 @@
 FROM ubuntu:12.04
 MAINTAINER David Hart "dhart@opencog.org"
 
-ENV DEBIAN_FRONTEND noninteractive
 RUN echo "deb http://hk.archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list && \
     echo "deb http://hk.archive.ubuntu.com/ubuntu precise-updates main universe" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get -y install python-software-properties \
-                       wget unzip bzr ssh pwgen sudo less vim
+    DEBIAN_FRONTEND=noninteractive apt-get -y update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y install python-software-properties \
+                                              wget unzip git ssh pwgen sudo less vim
 
 # Work around Upstart/DBus issues & set locale (fix the locale warnings)
 RUN dpkg-divert --local --rename --add /sbin/initctl && \
@@ -38,9 +37,9 @@ RUN apt-get -y install wordnet-dev wordnet-sense-index build-essential && \
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # installs to /usr/local/share/java, not /usr/share/java, buggy lib path
-RUN wget http://www.abisource.com/downloads/link-grammar/4.8.0/link-grammar-4.8.0.tar.gz && \
-    tar -xvf link-grammar-4.8.0.tar.gz && \
-    cd link-grammar-4.8.0 && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ./configure && \
+RUN wget http://www.abisource.com/downloads/link-grammar/4.8.6/link-grammar-4.8.6.tar.gz && \
+    tar -xvf link-grammar-4.8.6.tar.gz && \
+    cd link-grammar-4.8.6 && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ./configure && \
     make && make install && \
     ln -v -s /usr/local/lib/liblink-grammar.so.4 /usr/lib/liblink-grammar.so.4
 
@@ -55,11 +54,12 @@ RUN wget http://download.java.net/maven/2/gnu/getopt/java-getopt/1.0.13/java-get
     chmod 0644 /usr/share/java/gnu-getopt.jar
 
 # docker-container-init pulls changes
-RUN bzr branch -v lp:relex
+RUN git clone https://github.com/opencog/relex
 RUN cd relex && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ant
 
 # Copy context files into the container
 ADD . /relex
 
 EXPOSE 22
+USER daemon
 CMD ["/bin/bash", "/relex/docker-container-init.sh"]
