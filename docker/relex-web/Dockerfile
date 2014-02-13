@@ -1,11 +1,7 @@
-# For use with Docker, a manager for Linux Containers
-# Download from https://www.docker.io/gettingstarted/
-# Build: sudo docker build -t $USER/relex .
-# Run: CONTAINER_ID=$(sudo docker run -d -p 7001:7001 -p 7002:7002 -p 7003:7003 -p 7004:7004 -p 7005:7005 -p 7006:7006 $USER/relex)
-# Find IP: CONTAINER_IP=$(sudo docker inspect $CONTAINER_ID | grep IPAddress | cut -d '"' -f 4)
-# Find password: sudo docker logs $CONTAINER_ID | sed -n 1p
-# Login: ssh docker@$CONTAINER_IP
-# Find logs in /relex/out
+# For use with Docker https://www.docker.io/gettingstarted/
+# docker build -t $USER/lgservice .
+# docker run -d -p 9000:9000 $USER/lgservice
+#
 # Adjust apt sources to match your local mirror
 
 FROM ubuntu:12.04
@@ -36,10 +32,13 @@ RUN apt-get -y install wordnet-dev wordnet-sense-index build-essential && \
     apt-get -y install ant libcommons-logging-java
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
+ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
+
 # installs to /usr/local/share/java, not /usr/share/java, buggy lib path
 RUN wget http://www.abisource.com/downloads/link-grammar/4.8.6/link-grammar-4.8.6.tar.gz && \
     tar -xvf link-grammar-4.8.6.tar.gz && \
-    cd link-grammar-4.8.6 && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ./configure && \
+    cd link-grammar-4.8.6 && \
+    ./configure && \
     make && make install && \
     ln -v -s /usr/local/lib/liblink-grammar.so.4 /usr/lib/liblink-grammar.so.4
 
@@ -55,11 +54,18 @@ RUN wget http://download.java.net/maven/2/gnu/getopt/java-getopt/1.0.13/java-get
 
 # docker-container-init pulls changes
 RUN git clone https://github.com/opencog/relex
-RUN cd relex && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ant
+RUN cd relex && ant
 
-# Copy context files into the container
-ADD . /relex
+# makes relex-environment.sh redundant
+ENV LANG en_US.UTF-8
 
-EXPOSE 22
+ENV CLASSPATH /usr/share/java:\
+/usr/share/java/commons-logging.jar:\
+/usr/local/share/java/linkgrammar.jar:\
+/usr/share/java/jwnl.jar:\
+/usr/share/java/gnu-getopt.jar:\
+/relex/bin
+
 USER daemon
-CMD ["/bin/bash", "/relex/docker-container-init.sh"]
+CMD ["-verbose", "9000", "en"]
+ENTRYPOINT ["/usr/bin/java", "-Xmx1024m", "-Djava.library.path=/usr/lib:/usr/local/lib", "org.linkgrammar.LGService"]
