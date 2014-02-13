@@ -10,8 +10,7 @@ MAINTAINER David Hart "dhart@opencog.org"
 RUN echo "deb http://hk.archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list && \
     echo "deb http://hk.archive.ubuntu.com/ubuntu precise-updates main universe" >> /etc/apt/sources.list && \
     DEBIAN_FRONTEND=noninteractive apt-get -y update && \
-    DEBIAN_FRONTEND=noninteractive apt-get -y install python-software-properties \
-                                              wget unzip git ssh pwgen sudo less vim
+    DEBIAN_FRONTEND=noninteractive apt-get -y install python-software-properties wget unzip git 
 
 # Work around Upstart/DBus issues & set locale (fix the locale warnings)
 RUN dpkg-divert --local --rename --add /sbin/initctl && \
@@ -33,8 +32,9 @@ RUN apt-get -y install wordnet-dev wordnet-sense-index build-essential && \
 # RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
+ENV LANG en_US.UTF-8
 
-# installs to /usr/local/share/java, not /usr/share/java, buggy lib path
+# installs to /usr/local/share/java
 RUN wget http://www.abisource.com/downloads/link-grammar/4.8.6/link-grammar-4.8.6.tar.gz && \
     tar -xvf link-grammar-4.8.6.tar.gz && \
     cd link-grammar-4.8.6 && \
@@ -56,8 +56,7 @@ RUN wget http://download.java.net/maven/2/gnu/getopt/java-getopt/1.0.13/java-get
 RUN git clone https://github.com/opencog/relex
 RUN cd relex && ant
 
-# makes relex-environment.sh redundant
-ENV LANG en_US.UTF-8
+# environment for running RelEx or Link Grammar service
 
 ENV CLASSPATH /usr/share/java:\
 /usr/share/java/commons-logging.jar:\
