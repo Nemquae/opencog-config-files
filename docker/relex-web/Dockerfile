@@ -1,6 +1,7 @@
 # For use with Docker https://www.docker.io/gettingstarted/
 # docker build -t $USER/lgservice .
 # docker run -d -p 9000:9000 $USER/lgservice
+# docker logs -f CONTAINER_ID
 #
 # Adjust apt sources to match your local mirror
 
@@ -45,12 +46,12 @@ RUN cd link-grammar-* && \
 # if sourceforge's auto-mirror is down you are SOL. C-c start over. sf sucks.
 ADD http://downloads.sourceforge.net/project/jwordnet/jwnl/JWNL%201.4/jwnl14-rc2.zip /root/
 RUN unzip jwnl14-rc2.zip jwnl14-rc2/jwnl.jar && \
-    mv -v jwnl14-rc2/jwnl.jar /usr/share/java/ && \
-    chmod 0644 /usr/share/java/jwnl.jar 
+    mv -v jwnl14-rc2/jwnl.jar /usr/local/share/java/ && \
+    chmod 0644 /usr/local/share/java/jwnl.jar 
 
 ADD http://download.java.net/maven/2/gnu/getopt/java-getopt/1.0.13/java-getopt-1.0.13.jar /root/
-RUN mv -v java-getopt-1.0.13.jar /usr/share/java/gnu-getopt.jar && \
-    chmod 0644 /usr/share/java/gnu-getopt.jar
+RUN mv -v java-getopt-1.0.13.jar /usr/local/share/java/gnu-getopt.jar && \
+    chmod 0644 /usr/local/share/java/gnu-getopt.jar
 
 # fetch & build RelEx
 ADD http://github.com/opencog/relex/archive/master.zip /root/
@@ -63,8 +64,8 @@ RUN ant
 ENV CLASSPATH /usr/share/java:\
 /usr/share/java/commons-logging.jar:\
 /usr/local/share/java/linkgrammar.jar:\
-/usr/share/java/jwnl.jar:\
-/usr/share/java/gnu-getopt.jar:\
+/usr/local/share/java/jwnl.jar:\
+/usr/local/share/java/gnu-getopt.jar:\
 /relex/bin
 
 USER daemon
