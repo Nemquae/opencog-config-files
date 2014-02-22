@@ -37,8 +37,9 @@ ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
 ENV LANG en_US.UTF-8
 
 # installs to /usr/local/share/java
-ADD http://www.abisource.com/downloads/link-grammar/current/link-grammar-4.8.6.tar.gz /root
-RUN cd link-grammar-* && \
+ADD http://www.abisource.com/downloads/link-grammar/current/link-grammar-4.8.6.tar.gz /root/
+RUN tar zxf link-grammar-4.8.6.tar.gz && \
+    cd link-grammar-4.8.6 && \
     ./configure && \
     make && make install && \
     ln -v -s /usr/local/lib/liblink-grammar.so.4 /usr/lib/liblink-grammar.so.4
