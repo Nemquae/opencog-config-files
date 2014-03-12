@@ -1,70 +1,85 @@
-# For use with Docker, a manager for Linux Containers
-# Download from https://www.docker.io/gettingstarted/
-# Overview at http://kencochrane.net/blog/2013/08/the-docker-guidebook/
-# Build with 'sudo docker build -t $USER/relex .'
-# Run with 'CONTAINER_ID=$(sudo docker run -d $USER/relex)'
-# Find IP, port and password from 'docker inspect' and 'docker logs'
-# From scratch, without first cloning RelEx source, run
-#  'docker build github.com/TBD'
+# For use with Docker https://www.docker.io/gettingstarted/
+# docker build -t $USER/linkgrammar .
+# docker run --name linkgrammar -d -p 7001:7001 -p 7002:7002 -p 7003:7003 -p 7004:7004 -p 7005:7005 -p 7006:7006 $USER/linkgrammar
+# docker logs linkgrammar
+#
+# Adjust apt sources to match your local mirror
 
 FROM ubuntu:12.04
 MAINTAINER David Hart "dhart@opencog.org"
+WORKDIR /root
 
-ENV DEBIAN_FRONTEND noninteractive
-#Adjust these to match your local mirror
-#RUN echo "deb http://archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-#RUN echo "deb http://archive.ubuntu.com/ubuntu precise-updates main universe" >> /etc/apt/sources.list
-RUN echo "deb http://hk.archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list
-RUN echo "deb http://hk.archive.ubuntu.com/ubuntu precise-updates main universe" >> /etc/apt/sources.list
-RUN apt-get update && apt-get -y install python-software-properties wget unzip bzr ssh pwgen sudo less vim
+RUN echo "deb http://hk.archive.ubuntu.com/ubuntu precise main universe" > /etc/apt/sources.list && \
+    echo "deb http://hk.archive.ubuntu.com/ubuntu precise-updates main universe" >> /etc/apt/sources.list && \
+    apt-get -y update && \
+    apt-get -y install unzip 
 
-# Optional: for desktop-ish container. Thanks @rogaha
-#           based on https://github.com/rogaha/docker-desktop
-RUN apt-get install -y xserver-xephyr xdm xpra fluxbox rox-filer rxvt
-# Configuring xdm to allow connections from any IP address and ssh to allow X11 Forwarding.
-RUN sed -i 's/DisplayManager.requestPort/!DisplayManager.requestPort/g' /etc/X11/xdm/xdm-config
-RUN sed -i '/#any host/c\*' /etc/X11/xdm/Xaccess
-RUN ln -v -s /usr/bin/Xorg /usr/bin/X
-RUN echo ForwardX11 yes >> /etc/ssh/ssh_config
-# Upstart and DBus have issues inside docker. We work around in order to install firefox.
-RUN dpkg-divert --local --rename --add /sbin/initctl && ln -v -fs /bin/true /sbin/initctl
-# Set locale (fix the locale warnings)
-RUN localedef -c -i en_US -f UTF-8 en_US.UTF-8 || :
+# Work around Upstart/DBus issues & set locale (fix the locale warnings)
+RUN dpkg-divert --local --rename --add /sbin/initctl && \
+    ln -v -s /bin/true /sbin/initctl && \
+    localedef -c -i en_US -f UTF-8 en_US.UTF-8 || :
 
-# Hack for fuse - remove when Docker supports privileged mode
 # openjdk-7-jdk needs fuse and fuse needs privileged mode, so
-RUN apt-get -y install fuse || :
-RUN rm -rf /var/lib/dpkg/info/fuse.postinst
-RUN apt-get -y install fuse
+RUN apt-get -y install fuse || : && \
+    rm -rf /var/lib/dpkg/info/fuse.postinst && \
+    apt-get -y install fuse
 
-# Install RelEx dependencies & build
+# Ubuntu/Debian Packaging
+RUN apt-get -y install wordnet-dev wordnet-sense-index build-essential && \
+    apt-get -y install openjdk-7-jdk && \
+    apt-get -y install ant libcommons-logging-java libgetopt-java
 
-#RUN apt-get -y install link-grammar
-RUN apt-get -y install build-essential #for compiling link-grammar
-RUN apt-get -y install wordnet-dev wordnet-sense-index
-# braindead Ubuntu packaging, no headless jdk so get ready for GNOME
-RUN apt-get -y install openjdk-7-jdk 
-RUN apt-get -y install ant libcommons-logging-java
-#RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# installs to /usr/local/share/java, not /usr/share/java, buggy lib path
-RUN wget http://www.abisource.com/downloads/link-grammar/4.8.5/link-grammar-4.8.5.tar.gz
-RUN tar -xvf link-grammar-4.8.5.tar.gz
-RUN cd link-grammar-4.8.5 && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ./configure && make && make install && sudo ln -v -s /usr/local/lib/liblink-grammar.so.4 /usr/lib/liblink-grammar.so.4
+# Java WordNet Library
+ADD http://downloads.sourceforge.net/project/jwordnet/jwnl/JWNL%201.4/jwnl14-rc2.zip /root/
+RUN unzip jwnl14-rc2.zip jwnl14-rc2/jwnl.jar && \
+    mkdir -p /usr/local/share/java && \
+    mv -v jwnl14-rc2/jwnl.jar /usr/local/share/java/ && \
+    chmod -v 0644 /usr/local/share/java/jwnl.jar 
 
-# if sourceforge's auto-mirror is down you are SOL. C-c start over. sf sucks.
-RUN wget http://downloads.sourceforge.net/project/jwordnet/jwnl/JWNL%201.4/jwnl14-rc2.zip
-RUN unzip jwnl14-rc2.zip
-RUN cp -v jwnl14-rc2/jwnl.jar /usr/share/java/ && chmod 0644 /usr/share/java/jwnl.jar 
+ENV JAVA_HOME /usr/lib/jvm/java-7-openjdk-amd64
+ENV LANG en_US.UTF-8
 
-RUN wget http://download.java.net/maven/2/gnu/getopt/java-getopt/1.0.13/java-getopt-1.0.13.jar
-RUN cp -v java-getopt-1.0.13.jar /usr/share/java/gnu-getopt.jar && chmod 0644 /usr/share/java/gnu-getopt.jar
+# Link Grammar
+ADD http://www.abisource.com/downloads/link-grammar/current/link-grammar-4.8.6.tar.gz /root/
+RUN tar zxf link-grammar-4.8.6.tar.gz && \
+    cd link-grammar-4.8.6 && \
+    ./configure && \
+    make && make install && \
+    ln -v -s /usr/local/lib/liblink-grammar.so.4 /usr/lib/liblink-grammar.so.4
 
-RUN bzr branch lp:relex
-RUN cd relex && JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ant
+# fetch & build RelEx
+ADD http://github.com/opencog/relex/archive/master.zip /root/
+RUN unzip master.zip -d / && ln -v -s /relex-master /relex
+WORKDIR /relex-master
+RUN ant
 
-# Copy context files into the container
-ADD . /relex
+# environment for running RelEx and Link Grammar Services
 
-EXPOSE 22
-CMD ["/bin/bash", "/relex/docker-container-init.sh"]
+ENV CLASSPATH /usr/share/java:\
+/usr/share/java/commons-logging.jar:\
+/usr/share/java/gnu-getopt.jar:\
+/usr/local/share/java/linkgrammar.jar:\
+/usr/local/share/java/jwnl.jar:\
+/relex/bin
+
+ENV VM_OPTS -Xmx1024m -Djava.library.path=/usr/lib:/usr/local/lib
+
+# RelEx "service" definitions
+ENV server /usr/bin/java $VM_OPTS relex.Server --relex --anaphora --port 7003
+ENV plain /usr/bin/java $VM_OPTS relex.PlainTextServer --port 7004 
+ENV lgservice /usr/bin/java $VM_OPTS org.linkgrammar.LGService -verbose 7001 en 
+ENV lgservice_ru /usr/bin/java $VM_OPTS org.linkgrammar.LGService -verbose 7006 ru
+
+# TBD use with a linked opencog container
+ENV relex-opencog /usr/bin/java $VM_OPTS relex.Server --opencog --logic --port 444 --host $COGSERVER_PORT_17001_TCP_ADDR:17001
+
+# TBD use as a command line tool
+ENV cli /usr/bin/java $VM_OPTS relex.RelationExtractor --or -o -n 1 -s $SENTENCE
+
+# Default services that container runs. Override with docker run -e mode=foo
+ENV mode server plain lgservice lgservice_ru
+
+RUN chown -v daemon /relex-master
+USER daemon
+CMD for p in $mode; do eval $(echo \${$p})& done; sleep infinity
